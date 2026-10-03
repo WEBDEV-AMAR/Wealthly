@@ -2,6 +2,7 @@
 
 import AppSidebar from "@/components/ui/app-sidebar";
 import MobileNav from "@/components/ui/mobile-nav";
+import { supabase } from "@/lib/supabase";
 import {
   Bell,
   ChevronRight,
@@ -19,7 +20,7 @@ import {
   User,
   Wallet,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile");
@@ -29,10 +30,34 @@ export default function SettingsPage() {
   const [currency, setCurrency] = useState("INR");
 
   const [profile, setProfile] = useState({
-    name: "Amarnath",
-    email: "amarnath@example.com",
-    phone: "+91 98765 43210",
+    name: "User",
+    email: "",
+    phone: "",
   });
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const fullName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "User";
+
+      setProfile({
+        name: fullName,
+        email: user.email || "",
+        phone: user.user_metadata?.phone || user.phone || "",
+      });
+    };
+
+    loadProfile();
+  }, []);
 
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -60,8 +85,15 @@ export default function SettingsPage() {
     },
   ];
 
-  function handleLogout() {
-    alert("Logout will be connected to Supabase Auth later.");
+  async function handleLogout() {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      alert("Logout failed. Please try again.");
+      return;
+    }
+
+    window.location.href = "/auth";
   }
 
   return (
@@ -93,7 +125,7 @@ export default function SettingsPage() {
               <div className="-mt-10 flex flex-col gap-5 px-5 pb-5 sm:px-7 sm:pb-7 lg:flex-row lg:items-end lg:justify-between">
                 <div className="flex items-end gap-4">
                   <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border-4 border-[#09110D] bg-emerald-500/15 text-2xl font-semibold text-emerald-400">
-                    A
+                    {profile.name.charAt(0).toUpperCase() || "U"}
                   </div>
 
                   <div className="pb-1">
@@ -199,9 +231,7 @@ export default function SettingsPage() {
                           right={
                             <select
                               value={currency}
-                              onChange={(e) =>
-                                setCurrency(e.target.value)
-                              }
+                              onChange={(e) => setCurrency(e.target.value)}
                               className="rounded-lg border border-white/[0.08] bg-[#0B1712] px-3 py-2 text-xs text-white/70 outline-none"
                             >
                               <option value="INR">INR ₹</option>
@@ -345,7 +375,12 @@ export default function SettingsPage() {
                         icon={CreditCard}
                         title="Subscription reminders"
                         description="Get reminded about upcoming subscription payments."
-                        right={<Toggle enabled={true} onChange={() => {}} />}
+                        right={
+                          <Toggle
+                            enabled={true}
+                            onChange={() => {}}
+                          />
+                        }
                       />
                     </div>
                   </SettingsCard>

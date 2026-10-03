@@ -10,6 +10,7 @@ import {
   Mail,
   User,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -17,8 +18,119 @@ export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
-  function handleAuth() {
-    router.push("/dashboard");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  function switchMode() {
+    setIsSignUp((prev) => !prev);
+    setErrorMessage("");
+    setSuccessMessage("");
+  }
+
+  async function handleAuth() {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    if (isSignUp && !fullName.trim()) {
+      setErrorMessage("Please enter your full name.");
+      return;
+    }
+
+    if (!email.trim()) {
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage("Please enter your password.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage("Password must be at least 6 characters.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
+          },
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          return;
+        }
+
+        if (data.session) {
+          router.push("/dashboard");
+          router.refresh();
+          return;
+        }
+
+        setSuccessMessage(
+          "Account created! Check your email to confirm your account."
+        );
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          return;
+        }
+
+        router.push("/dashboard");
+        router.refresh();
+      }
+    } catch {
+      setErrorMessage(
+        "Something went wrong. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleAuth() {
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+
+      if (error) {
+        setErrorMessage(error.message);
+      }
+    } catch {
+      setErrorMessage(
+        "Unable to continue with Google right now."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -133,8 +245,11 @@ export default function AuthPage() {
 
                       <input
                         type="text"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
                         placeholder="Enter your name"
-                        className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 text-sm outline-none placeholder:text-white/25 focus:border-emerald-500/50"
+                        disabled={loading}
+                        className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 text-sm outline-none placeholder:text-white/25 focus:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
                       />
 
                     </div>
@@ -157,8 +272,11 @@ export default function AuthPage() {
 
                     <input
                       type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 text-sm outline-none placeholder:text-white/25 focus:border-emerald-500/50"
+                      disabled={loading}
+                      className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-4 text-sm outline-none placeholder:text-white/25 focus:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
 
                   </div>
@@ -180,8 +298,16 @@ export default function AuthPage() {
 
                     <input
                       type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-12 text-sm outline-none placeholder:text-white/25 focus:border-emerald-500/50"
+                      disabled={loading}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleAuth();
+                        }
+                      }}
+                      className="h-14 w-full rounded-2xl border border-white/10 bg-white/[0.04] pl-12 pr-12 text-sm outline-none placeholder:text-white/25 focus:border-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-50"
                     />
 
                     <button
@@ -189,7 +315,8 @@ export default function AuthPage() {
                       onClick={() =>
                         setShowPassword((prev) => !prev)
                       }
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 transition hover:text-white/70"
+                      disabled={loading}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 transition hover:text-white/70 disabled:opacity-50"
                     >
                       {showPassword ? (
                         <EyeOff size={18} />
@@ -215,16 +342,34 @@ export default function AuthPage() {
                   </div>
                 )}
 
+                {/* Error */}
+                {errorMessage && (
+                  <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.06] px-4 py-3 text-sm leading-5 text-red-300">
+                    {errorMessage}
+                  </div>
+                )}
+
+                {/* Success */}
+                {successMessage && (
+                  <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3 text-sm leading-5 text-emerald-300">
+                    {successMessage}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleAuth}
-                  className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-emerald-500 font-semibold text-[#07110D] transition hover:bg-emerald-400 active:scale-[0.98]"
+                  disabled={loading}
+                  className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-emerald-500 font-semibold text-[#07110D] transition hover:bg-emerald-400 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isSignUp
-                    ? "Create Account"
-                    : "Sign In"}
+                  {loading
+                    ? "Please wait..."
+                    : isSignUp
+                      ? "Create Account"
+                      : "Sign In"}
 
-                  <ArrowRight size={19} />
+                  {!loading && <ArrowRight size={19} />}
+
                 </button>
 
               </div>
@@ -245,8 +390,9 @@ export default function AuthPage() {
               {/* Google */}
               <button
                 type="button"
-                onClick={handleAuth}
-                className="flex h-14 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-sm font-medium transition hover:bg-white/[0.06]"
+                onClick={handleGoogleAuth}
+                disabled={loading}
+                className="flex h-14 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] text-sm font-medium transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Continue with Google
               </button>
@@ -260,10 +406,9 @@ export default function AuthPage() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setIsSignUp((prev) => !prev)
-                  }
-                  className="font-medium text-emerald-400 hover:text-emerald-300"
+                  onClick={switchMode}
+                  disabled={loading}
+                  className="font-medium text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
                 >
                   {isSignUp
                     ? "Sign In"

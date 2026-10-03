@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -12,6 +13,7 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 const navigation = [
   {
@@ -67,6 +69,30 @@ const bottomNavigation = [
 export default function AppSidebar() {
   const router = useRouter();
   const pathname = usePathname();
+
+  const [userName, setUserName] = useState("User");
+
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const fullName =
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        user.email?.split("@")[0] ||
+        "User";
+
+      setUserName(fullName);
+    };
+
+    loadUserProfile();
+  }, []);
+
+  const userInitial = userName.charAt(0).toUpperCase() || "U";
 
   function isActive(href: string) {
     if (href === "/dashboard") {
@@ -186,12 +212,12 @@ export default function AppSidebar() {
           {/* Profile */}
           <div className="mt-5 flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-sm font-semibold text-emerald-400">
-              A
+              {userInitial}
             </div>
 
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-white/80">
-                Amarnath
+                {userName}
               </p>
 
               <p className="truncate text-xs text-white/25">

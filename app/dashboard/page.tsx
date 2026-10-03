@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -8,12 +10,12 @@ import {
   CircleDollarSign,
   CreditCard,
   Target,
-  TrendingUp,
   Wallet,
 } from "lucide-react";
 
 import AppSidebar from "@/components/ui/app-sidebar";
 import MobileNav from "@/components/ui/mobile-nav";
+import { supabase } from "@/lib/supabase";
 
 const transactions = [
   {
@@ -81,6 +83,30 @@ const formatCurrency = (amount: number) =>
 export default function DashboardPage() {
   const router = useRouter();
 
+  const [userName, setUserName] = useState("User");
+
+  useEffect(() => {
+    const getUserName = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const fullName = user.user_metadata?.full_name;
+
+        if (fullName) {
+          setUserName(fullName);
+        } else if (user.email) {
+          setUserName(user.email.split("@")[0]);
+        }
+      }
+    };
+
+    getUserName();
+  }, []);
+
+  const userInitial = userName.charAt(0).toUpperCase();
+
   const totalBalance = 54360;
   const monthlyIncome = 25000;
   const monthlyExpense = 18640;
@@ -98,14 +124,15 @@ export default function DashboardPage() {
               <p className="text-xs uppercase tracking-[0.2em] text-white/25">
                 Overview
               </p>
+
               <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">
-                Good afternoon, Amarnath 👋
+                Good afternoon, {userName} 👋
               </h1>
             </div>
 
             <div className="hidden items-center gap-3 sm:flex">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-sm font-semibold text-emerald-400">
-                A
+                {userInitial}
               </div>
             </div>
           </header>
@@ -126,6 +153,7 @@ export default function DashboardPage() {
                       <ArrowUpRight size={16} />
                       8.4%
                     </span>
+
                     <span className="text-white/25">
                       compared to last month
                     </span>
@@ -197,6 +225,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="font-semibold">Spending Overview</h2>
+
                     <p className="mt-1 text-xs text-white/25">
                       September 2026
                     </p>
@@ -214,6 +243,7 @@ export default function DashboardPage() {
                   <div className="flex items-end justify-between">
                     <div>
                       <p className="text-3xl font-bold">₹18,640</p>
+
                       <p className="mt-1 text-xs text-white/25">
                         of ₹25,000 monthly budget
                       </p>
@@ -258,6 +288,7 @@ export default function DashboardPage() {
 
                   <div>
                     <h2 className="font-semibold">Emergency Fund</h2>
+
                     <p className="text-xs text-white/25">
                       Your safety net
                     </p>
@@ -285,6 +316,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4 sm:px-6">
                 <div>
                   <h2 className="font-semibold">Savings Goals</h2>
+
                   <p className="mt-1 text-xs text-white/25">
                     Keep moving toward your goals
                   </p>
@@ -336,6 +368,7 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4 sm:px-6">
                 <div>
                   <h2 className="font-semibold">Recent Transactions</h2>
+
                   <p className="mt-1 text-xs text-white/25">
                     Your latest activity
                   </p>
@@ -369,6 +402,7 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium">
                           {transaction.name}
                         </p>
+
                         <p className="mt-1 text-xs text-white/25">
                           {transaction.category} • {transaction.date}
                         </p>
